@@ -38,7 +38,13 @@ infocmp -x xterm-ghostty
 ## Source
 
 The generator imports Ghostty's `src/terminfo/ghostty.zig` as a Zig module and
-calls its `encode()` method. This avoids depending on Ghostty's full build graph.
+calls its `encode()` method through this repository's build step:
+
+```sh
+zig build generate -Dghostty-src=/path/to/ghostty
+```
+
+This avoids depending on Ghostty's full build graph.
 
 The output is validated by compiling it with `tic -x` and checking that
 `infocmp -x xterm-ghostty` can read the resulting database.

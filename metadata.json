@@ -6,9 +6,7 @@
     "short_commit": "cabbdee32b75"
   },
   "generator": {
-    "command": "zig run --dep ghostty_terminfo -Mroot=<generator> -Mghostty_terminfo=<ghostty>/src/terminfo/ghostty.zig",
     "zig_version": "0.15.2",
-    "zig_target": "aarch64-macos.15.0.0-none",
     "generated_at": "2026-07-07T04:14:18Z"
   }
 }

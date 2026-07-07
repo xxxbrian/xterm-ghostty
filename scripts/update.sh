@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GHOSTTY_REPO="${GHOSTTY_REPO:-https://github.com/ghostty-org/ghostty.git}"
 GHOSTTY_REF="${GHOSTTY_REF:-main}"
-ZIG_VERSION="${ZIG_VERSION:-0.15.2}"
+ZIG_VERSION="${ZIG_VERSION:-}"
 ZIG_TARGET="${ZIG_TARGET:-}"
 
 tmp_dirs=()
@@ -35,6 +35,14 @@ if [[ ! -f "$ghostty_dir/src/terminfo/ghostty.zig" ]]; then
 fi
 
 zig_cmd=(zig)
+if [[ -z "$ZIG_VERSION" ]]; then
+  ZIG_VERSION="$(grep -E 'minimum_zig_version = "' "$ghostty_dir/build.zig.zon" | sed -E 's/.*"([^"]+)".*/\1/')"
+fi
+if [[ -z "$ZIG_VERSION" ]]; then
+  echo "error: unable to read Ghostty minimum_zig_version" >&2
+  exit 1
+fi
+
 if command -v mise >/dev/null 2>&1 && mise exec "zig@$ZIG_VERSION" -- zig version >/dev/null 2>&1; then
   zig_cmd=(mise exec "zig@$ZIG_VERSION" -- zig)
 fi
@@ -49,34 +57,13 @@ source_commit="$(git -C "$ghostty_dir" rev-parse HEAD)"
 source_short_commit="$(git -C "$ghostty_dir" rev-parse --short=12 HEAD)"
 generated_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 terminfo_tmp="$(mktemp)"
-generator_dir="$(mktemp -d)"
-generator_tmp="$generator_dir/generate.zig"
-tmp_dirs+=("$generator_dir")
 tmp_files+=("$terminfo_tmp")
-
-cat > "$generator_tmp" <<'ZIG'
-const std = @import("std");
-const ghostty = @import("ghostty_terminfo").ghostty;
-
-pub fn main() !void {
-    var buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writerStreaming(&buffer);
-    try ghostty.encode(&stdout_writer.interface);
-    try stdout_writer.end();
-}
-ZIG
-
-zig_run_args=(run)
+zig_build_args=(build generate -Dghostty-src="$ghostty_dir")
 if [[ -n "$ZIG_TARGET" ]]; then
-  zig_run_args+=(-target "$ZIG_TARGET")
+  zig_build_args+=(-Dtarget="$ZIG_TARGET")
 fi
-zig_run_args+=(
-  --dep ghostty_terminfo
-  -Mroot="$generator_tmp"
-  -Mghostty_terminfo="$ghostty_dir/src/terminfo/ghostty.zig"
-)
 
-"${zig_cmd[@]}" "${zig_run_args[@]}" > "$terminfo_tmp"
+"${zig_cmd[@]}" "${zig_build_args[@]}" > "$terminfo_tmp"
 
 validate_dir="$(mktemp -d)"
 tmp_dirs+=("$validate_dir")
@@ -99,9 +86,7 @@ cat > "$ROOT/metadata.json" <<JSON
     "short_commit": "$source_short_commit"
   },
   "generator": {
-    "command": "zig run --dep ghostty_terminfo -Mroot=<generator> -Mghostty_terminfo=<ghostty>/src/terminfo/ghostty.zig",
     "zig_version": "$actual_zig_version",
-    "zig_target": "$ZIG_TARGET",
     "generated_at": "$generated_at"
   }
 }
