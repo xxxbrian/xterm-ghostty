@@ -22,10 +22,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check out Ghostty
+        run: git clone --depth=1 --filter=blob:none https://github.com/ghostty-org/ghostty.git upstream/ghostty
+
+      - name: Read Ghostty Zig version
+        id: zig
+        run: |
+          version="$(grep -E 'minimum_zig_version = "' upstream/ghostty/build.zig.zon | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$version" ]; then
+            echo "Unable to read Ghostty minimum_zig_version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: ${{ steps.zig.outputs.version }}
 
       - name: Install validation tools
         run: |
@@ -33,7 +46,7 @@ jobs:
           sudo apt-get install -y ncurses-bin jq
 
       - name: Generate terminfo
-        run: ./scripts/update.sh
+        run: GHOSTTY_DIR=upstream/ghostty ./scripts/update.sh
 
       - name: Detect terminfo changes
         id: changes
@@ -50,13 +63,13 @@ jobs:
         run: |
           short_sha="$(jq -r '.source.short_commit' metadata.json)"
           full_sha="$(jq -r '.source.commit' metadata.json)"
-          tag="ghostty-${short_sha}"
+          tag="${short_sha}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add xterm-ghostty.terminfo metadata.json
           git commit -m "chore: update terminfo from ghostty ${short_sha}"
-          git tag -a "$tag" -m "xterm-ghostty from ghostty ${full_sha}"
+          git tag -a "$tag" -m "Ghostty ${full_sha}"
           git push origin HEAD:main
           git push origin "$tag"
 
@@ -70,7 +83,7 @@ jobs:
           gh release create "${{ steps.commit.outputs.tag }}" \
             xterm-ghostty.terminfo \
             metadata.json \
-            --title "xterm-ghostty from ghostty ${{ steps.commit.outputs.short_sha }}" \
+            --title "Ghostty ${{ steps.commit.outputs.short_sha }}" \
             --notes "Generated from ghostty-org/ghostty@${{ steps.commit.outputs.full_sha }}."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
