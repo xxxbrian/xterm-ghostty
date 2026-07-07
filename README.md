@@ -8,19 +8,20 @@ created only when the generated terminfo text changes.
 
 ## Install
 
-With `curl`:
+One command:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/xxxbrian/xterm-ghostty/main/setup.sh | sh
+```
+
+The script installs the latest released `xterm-ghostty.terminfo` into
+`~/.terminfo`.
+
+Direct from the latest release:
 
 ```sh
 mkdir -p ~/.terminfo
 curl -fsSL https://github.com/xxxbrian/xterm-ghostty/releases/latest/download/xterm-ghostty.terminfo \
-  | tic -x -o ~/.terminfo -
-```
-
-With `wget`:
-
-```sh
-mkdir -p ~/.terminfo
-wget -qO- https://github.com/xxxbrian/xterm-ghostty/releases/latest/download/xterm-ghostty.terminfo \
   | tic -x -o ~/.terminfo -
 ```
 
