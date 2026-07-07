@@ -57,33 +57,56 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit update
-        if: steps.changes.outputs.changed == 'true'
-        id: commit
+      - name: Read metadata
+        id: metadata
         run: |
           short_sha="$(jq -r '.source.short_commit' metadata.json)"
           full_sha="$(jq -r '.source.commit' metadata.json)"
           tag="${short_sha}"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add xterm-ghostty.terminfo metadata.json
-          git commit -m "chore: update terminfo from ghostty ${short_sha}"
-          git tag -a "$tag" -m "Ghostty ${full_sha}"
-          git push origin HEAD:main
-          git push origin "$tag"
-
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
           echo "full_sha=$full_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Detect release
+        id: release
+        run: |
+          if gh release view "${{ steps.metadata.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit update
         if: steps.changes.outputs.changed == 'true'
         run: |
-          gh release create "${{ steps.commit.outputs.tag }}" \
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add xterm-ghostty.terminfo metadata.json
+          git commit -m "chore: update terminfo from ghostty ${{ steps.metadata.outputs.short_sha }}"
+          git tag -a "${{ steps.metadata.outputs.tag }}" -m "xterm-ghostty from ghostty ${{ steps.metadata.outputs.full_sha }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.metadata.outputs.tag }}"
+
+      - name: Ensure release tag
+        if: steps.changes.outputs.changed != 'true' && steps.release.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git rev-parse -q --verify "refs/tags/${{ steps.metadata.outputs.tag }}" >/dev/null; then
+            git tag -a "${{ steps.metadata.outputs.tag }}" -m "xterm-ghostty from ghostty ${{ steps.metadata.outputs.full_sha }}"
+          fi
+          git push origin "${{ steps.metadata.outputs.tag }}"
+
+      - name: Create release
+        if: steps.changes.outputs.changed == 'true' || steps.release.outputs.exists == 'false'
+        run: |
+          gh release create "${{ steps.metadata.outputs.tag }}" \
             xterm-ghostty.terminfo \
             metadata.json \
-            --title "xterm-ghostty ${{ steps.commit.outputs.short_sha }}" \
-            --notes "Generated from ghostty-org/ghostty@${{ steps.commit.outputs.full_sha }}."
+            --title "xterm-ghostty ${{ steps.metadata.outputs.short_sha }}" \
+            --notes "Generated from ghostty-org/ghostty@${{ steps.metadata.outputs.full_sha }}."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
