@@ -2,11 +2,11 @@
   "source": {
     "repository": "https://github.com/ghostty-org/ghostty.git",
     "ref": "main",
-    "commit": "cabbdee32b75ac71f0e2b19b31e4c25da97b5461",
-    "short_commit": "cabbdee32b75"
+    "commit": "c41c6b81a4642ccba18d47b375d9495664de72a0",
+    "short_commit": "c41c6b81a464"
   },
   "generator": {
     "zig_version": "0.15.2",
-    "generated_at": "2026-07-07T04:14:18Z"
+    "generated_at": "2026-07-07T04:43:50Z"
   }
 }
