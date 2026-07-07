@@ -1,0 +1,76 @@
+name: Update terminfo
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-terminfo
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ncurses-bin jq
+
+      - name: Generate terminfo
+        run: ./scripts/update.sh
+
+      - name: Detect terminfo changes
+        id: changes
+        run: |
+          if git diff --quiet -- xterm-ghostty.terminfo; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit update
+        if: steps.changes.outputs.changed == 'true'
+        id: commit
+        run: |
+          short_sha="$(jq -r '.source.short_commit' metadata.json)"
+          full_sha="$(jq -r '.source.commit' metadata.json)"
+          tag="ghostty-${short_sha}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add xterm-ghostty.terminfo metadata.json
+          git commit -m "chore: update terminfo from ghostty ${short_sha}"
+          git tag -a "$tag" -m "xterm-ghostty from ghostty ${full_sha}"
+          git push origin HEAD:main
+          git push origin "$tag"
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "full_sha=$full_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          gh release create "${{ steps.commit.outputs.tag }}" \
+            xterm-ghostty.terminfo \
+            metadata.json \
+            --title "xterm-ghostty from ghostty ${{ steps.commit.outputs.short_sha }}" \
+            --notes "Generated from ghostty-org/ghostty@${{ steps.commit.outputs.full_sha }}."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

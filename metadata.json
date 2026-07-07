@@ -1,0 +1,14 @@
+{
+  "source": {
+    "repository": "https://github.com/ghostty-org/ghostty.git",
+    "ref": "main",
+    "commit": "cabbdee32b75ac71f0e2b19b31e4c25da97b5461",
+    "short_commit": "cabbdee32b75"
+  },
+  "generator": {
+    "command": "zig run --dep ghostty_terminfo -Mroot=<generator> -Mghostty_terminfo=<ghostty>/src/terminfo/ghostty.zig",
+    "zig_version": "0.15.2",
+    "zig_target": "aarch64-macos.15.0.0-none",
+    "generated_at": "2026-07-07T04:14:18Z"
+  }
+}
