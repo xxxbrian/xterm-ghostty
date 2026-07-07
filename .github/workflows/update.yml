@@ -83,7 +83,7 @@ jobs:
           gh release create "${{ steps.commit.outputs.tag }}" \
             xterm-ghostty.terminfo \
             metadata.json \
-            --title "Ghostty ${{ steps.commit.outputs.short_sha }}" \
+            --title "xterm-ghostty ${{ steps.commit.outputs.short_sha }}" \
             --notes "Generated from ghostty-org/ghostty@${{ steps.commit.outputs.full_sha }}."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
